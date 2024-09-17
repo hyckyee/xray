@@ -1,0 +1,48 @@
+import torch
+from torchvision import transforms
+from PIL import Image
+from models.autoencoder import Autoencoder
+from utils.dataset import CustomImageDataset
+
+def load_model(model_path):
+    model = Autoencoder()
+    model.load_state_dict(torch.load(model_path))
+    model.eval()
+    return model
+
+def preprocess_image(image_path, transform):
+    image = Image.open(image_path).convert('RGB')
+    if transform:
+        image = transform(image)
+    return image.unsqueeze(0)  # 배치 차원을 추가
+
+def reconstruct_image(model, image):
+    with torch.no_grad():
+        return model(image)
+
+def save_image(tensor, output_path):
+    image = tensor.squeeze(0).cpu().detach()  # 배치 차원 제거
+    image = transforms.ToPILImage()(image)
+    image.save(output_path)
+
+if __name__ == '__main__':
+    # 모델과 데이터 준비
+    model = load_model('autoencoder.pth')
+    transform = transforms.Compose([
+        transforms.Grayscale(),
+        transforms.ToTensor(),
+        transforms.Normalize((0.5,), (0.5,))
+    ])
+    
+    # 이미지 로딩 및 전처리
+    input_image_path = 'data/images/00001335_005.png'
+    image = preprocess_image(input_image_path, transform)
+    
+    # 이미지 재구성
+    reconstructed_image = reconstruct_image(model, image)
+    
+    # 재구성된 이미지 저장
+    output_image_path = 'data/images/reconstructed_00001335_005.png'
+    save_image(reconstructed_image, output_image_path)
+    
+    print(f'Reconstructed image saved to {output_image_path}')
